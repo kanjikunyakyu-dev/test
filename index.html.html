@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>えきびるーれっと</title>
+    <!-- Tailwind CSSのCDNを読み込みます -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* カスタムモーダルのスタイル */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border-radius: 1rem;
+            width: 80%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white p-8 rounded-2xl shadow-xl max-w-2xl w-full text-center space-y-6">
+        <h1 class="text-4xl font-black text-gray-800">えきびるーれっと</h1>
+
+        <!-- シート選択とボタンのコンテナ -->
+        <div class="flex flex-col md:flex-row justify-center items-center md:space-x-6 space-y-4 md:space-y-0 my-4">
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center">
+                    <input type="radio" id="sheet1" name="sheet" value="sheet1" checked
+                           class="form-radio h-5 w-5 text-indigo-600 transition duration-150 ease-in-out">
+                    <label for="sheet1" class="ml-2 text-gray-700 font-medium">第一ビル</label>
+                </div>
+                <div class="flex items-center">
+                    <input type="radio" id="sheet2" name="sheet" value="sheet2"
+                           class="form-radio h-5 w-5 text-indigo-600 transition duration-150 ease-in-out">
+                    <label for="sheet2" class="ml-2 text-gray-700 font-medium">第二ビル</label>
+                </div>
+            </div>
+            
+            <button id="show_conquered_list_button"
+                    class="w-full md:w-auto bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-full shadow-lg
+                           hover:bg-gray-300 focus:outline-none focus:ring-4 focus:ring-gray-300
+                           focus:ring-opacity-75 transition duration-300 ease-in-out transform hover:scale-105 active:scale-95">
+                制覇リスト
+            </button>
+        </div>
+
+        <!-- 抽選開始ボタン -->
+        <button id="start_lottery"
+                class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-black text-2xl py-4 px-8 rounded-full shadow-lg
+                       hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-purple-300
+                       focus:ring-opacity-75 transition duration-300 ease-in-out transform hover:scale-105 active:scale-95">
+            START
+        </button>
+
+        <!-- 抽選結果を表示するエリア -->
+        <div id="results" class="mt-6 text-left p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <p class="text-gray-500">抽選結果はここに表示されます。</p>
+        </div>
+    </div>
+
+    <!-- カスタムモーダル -->
+    <div id="conquered-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">制覇リスト</h2>
+            <div id="conquered-list" class="space-y-2 text-left text-gray-700 overflow-y-auto max-h-80">
+                <!-- 制覇リストの項目がここに動的に追加されます -->
+            </div>
+            <button id="clear_conquered_list_button"
+                    class="mt-4 bg-red-500 text-white font-bold py-2 px-4 rounded-full shadow-lg
+                           hover:bg-red-600 focus:outline-none focus:ring-4 focus:ring-red-300
+                           focus:ring-opacity-75 transition duration-300 ease-in-out transform hover:scale-105 active:scale-95">
+                リストをクリア
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // すべての店舗データを定義。このデータはアプリ内に組み込まれているため、GitHub Pagesで問題なく動作します。
+            const all_data = [
+                // 1_1_〇〇のシートデータ
+                {"番号": "1_1_04", "店舗名/会社名": "うどん・そば・食事処 三紀"},
+                {"番号": "1_1_07", "店舗名/会社名": "塩ラーメン専門店 炎`honoma`"},
+                {"番号": "1_1_08", "店舗名/会社名": "スパイスカリー Racheal (ラシュル)"},
+                {"番号": "1_1_09", "店舗名/会社名": "サカバ(酒)!"},
+                {"番号": "1_1_13", "店舗名/会社名": "ホリーズカフェ"},
+                {"番号": "1_1_14", "店舗名/会社名": "海鮮山オカピ"},
+                {"番号": "1_1_20", "店舗名/会社名": "Party Space Bar OPEN DOOR"},
+                {"番号": "1_1_31", "店舗名/会社名": "魚勘平"},
+                {"番号": "1_1_34", "店舗名/会社名": "北野"},
+                {"番号": "1_1_35", "店舗名/会社名": "スタンダードカレー ワタナベ"},
+                {"番号": "1_1_36", "店舗名/会社名": "トサール"},
+                {"番号": "1_1_37", "店舗名/会社名": "炙りお造し屋さん 森脇家"},
+                {"番号": "1_1_38", "店舗名/会社名": "ロシア料理 モスクワ プリュス シュエ"},
+                {"番号": "1_1_42", "店舗名/会社名": "焼鳥 マジョ"},
+                {"番号": "1_1_45", "店舗名/会社名": "旨いもん酒場 章"},
+                {"番号": "1_1_49", "店舗名/会社名": "買人一かしらとけー"},
+                // 1_2_〇〇のシートデータ
+                {"番号": "1_2_02", "店舗名/会社名": "旬菜料理 旬彩御膳 ふじ崎"},
+                {"番号": "1_2_03", "店舗名/会社名": "九州もん"},
+                {"番号": "1_2_04", "店舗名/会社名": "大阪酒場 大阪田イボリ"},
+                {"番号": "1_2_05", "店舗名/会社名": "立ち呑み処 まる"},
+                {"番号": "1_2_06", "店舗名/会社名": "うどん・そば・食事処 三紀"},
+                {"番号": "1_2_08", "店舗名/会社名": "チケットキング第1ビル店"},
+                {"番号": "1_2_10", "店舗名/会社名": "和食料理 エルヴーリト"},
+                {"番号": "1_2_18", "店舗名/会社名": "フードコート 茶屋"},
+                {"番号": "1_2_20", "店舗名/会社名": "SH堀井医療学園総合センター"},
+                {"番号": "1_2_21", "店舗名/会社名": "洋食仕立手造料理 木安佐庵"},
+                {"番号": "1_2_22", "店舗名/会社名": "旬安定"},
+                {"番号": "1_2_24", "店舗名/会社名": "CRAFT BEER BASE BUD"},
+                {"番号": "1_2_25", "店舗名/会社名": "バル ヒョン"},
+                {"番号": "1_2_26", "店舗名/会社名": "丸喜酒店"},
+                {"番号": "1_2_27", "店舗名/会社名": "酒場酒場 スタンド ミルクール"},
+                {"番号": "1_2_28", "店舗名/会社名": "ひもの特選"},
+                {"番号": "1_2_30", "店舗名/会社名": "串焼亭(カシン)"},
+                {"番号": "1_2_32", "店舗名/会社名": "spice32"},
+                {"番号": "1_2_34", "店舗名/会社名": "大阪串かつ処 大阪梅田 ブラウン"},
+                {"番号": "1_2_35", "店舗名/会社名": "立ち飲み処 旬"},
+                {"番号": "1_2_36", "店舗名/会社名": "おおきな立ち飲み 夢ごこち"},
+                {"番号": "1_2_37", "店舗名/会社名": "うどん処 たかはた"},
+                {"番号": "1_2_38", "店舗名/会社名": "居食処 あかね"},
+                {"番号": "1_2_40", "店舗名/会社名": "商品券 福田スタンプ"},
+                {"番号": "1_2_41", "店舗名/会社名": "TAKOYAKI & BAR POULPE"},
+                {"番号": "1_2_42", "店舗名/会社名": "立ち呑みの厨房郎"},
+                {"番号": "1_2_43", "店舗名/会社名": "夢ごこち"},
+                {"番号": "1_2_44", "店舗名/会社名": "クレープショップ ミロ"},
+                {"番号": "1_2_45", "店舗名/会社名": "立ち呑みうどん きつね屋"},
+                {"番号": "1_2_46", "店舗名/会社名": "スタンド鮨屋 寿岳"},
+                {"番号": "1_2_47", "店舗名/会社名": "中華料理 金龍飯店 2号店"},
+                {"番号": "1_2_48", "店舗名/会社名": "らーめんやきとりちゃん イッちゃん"},
+                {"番号": "1_2_49", "店舗名/会社名": "ちょっとした料理とおばんざい らららん"},
+                {"番号": "1_2_50", "店舗名/会社名": "一品料理 東山"},
+                {"番号": "1_2_51", "店舗名/会社名": "居酒屋"},
+                {"番号": "1_2_52", "店舗名/会社名": "大阪酒場 酒膳 魚寅"},
+                {"番号": "1_2_53", "店舗名/会社名": "喫茶・軽食 フルール"},
+                {"番号": "1_2_54", "店舗名/会社名": "立ち喰い フラワーガーデン"},
+                {"番号": "1_2_59", "店舗名/会社名": "手打ちうどんの店 たかはた"},
+                {"番号": "1_2_60", "店舗名/会社名": "たばこ(つるつる屋)"},
+                {"番号": "1_2_63", "店舗名/会社名": "割烹 谷野"},
+                {"番号": "1_2_65", "店舗名/会社名": "立ち飲み スタンドバーサンカク シブチャマン"},
+                {"番号": "1_2_66", "店舗名/会社名": "大衆酒場 マルリキ"},
+                {"番号": "1_2_67", "店舗名/会社名": "CRAFTROOM"},
+                {"番号": "1_2_68", "店舗名/会社名": "大衆酒場 まんちん処"},
+                {"番号": "1_2_69", "店舗名/会社名": "旨いもん 料理"},
+                {"番号": "1_2_70", "店舗名/会社名": "立ち飲み 俺弐"},
+                {"番号": "1_2_71", "店舗名/会社名": "旨いもん処 みや本"},
+                {"番号": "1_2_72", "店舗名/会社名": "紀州世界のかっぱ いやく 大阪駅前第1ビル店"},
+                {"番号": "1_2_74", "店舗名/会社名": "焼肉おかめ"},
+                {"番号": "1_2_75", "店舗名/会社名": "焼き鳥酒場"},
+                {"番号": "1_2_78", "店舗名/会社名": "居食処 やいもん"},
+                {"番号": "1_2_79", "店舗名/会社名": "is saw"},
+                {"番号": "1_2_82", "店舗名/会社名": "割烹 いちもん"},
+                {"番号": "1_2_83", "店舗名/会社名": "インド料理 エラ"},
+                {"番号": "1_2_84", "店舗名/会社名": "大分からあげ 立ち飲み 鶏りょうたの手羽先"},
+                {"番号": "1_2_85", "店舗名/会社名": "立ち飲みワイン 立ちふどう木"},
+                // 2_1_〇〇のシートデータ
+                {"番号": "2_1_03", "店舗名/会社名": "タイ式マッサージ Jasminumジャスミン"},
+                {"番号": "2_1_04", "店舗名/会社名": "焼鳥酒場肉肉じゅう"},
+                {"番号": "2_1_07", "店舗名/会社名": "ちかごのカレー屋さん カナエ"},
+                {"番号": "2_1_11", "店舗名/会社名": "合同市場"},
+                {"番号": "2_1_12", "店舗名/会社名": "油麺処 ナカヒデ"},
+                {"番号": "2_1_20", "店舗名/会社名": "インド家庭料理 マルゲラ"},
+                {"番号": "2_1_21", "店舗名/会社名": "餃子酒場マルゲラ"},
+                {"番号": "2_1_25", "店舗名/会社名": "旬肴酒場 和創 ゆかい〜"},
+                {"番号": "2_1_26", "店舗名/会社名": "めん処うら庵"},
+                {"番号": "2_1_27", "店舗名/会社名": "カフェ・ラ・オーシュ"},
+                {"番号": "2_1_29", "店舗名/会社名": "まじめんや"},
+                {"番号": "2_1_32", "店舗名/会社名": "森のりんご厨房パート1"},
+                {"番号": "2_1_33", "店舗名/会社名": "大阪酒場しがめ"},
+                {"番号": "2_1_36", "店舗名/会社名": "おおからあげ弁当と鶏だし弁当 (株)LEGACYPLANNING"},
+                {"番号": "2_1_37", "店舗名/会社名": "Bay SECOND FILL"},
+                {"番号": "2_1_38", "店舗名/会社名": "串カツわかさか"},
+                {"番号": "2_1_41", "店舗名/会社名": "まさしま酒店"},
+                {"番号": "2_1_42", "店舗名/会社名": "まさしま酒店"},
+                {"番号": "2_1_43", "店舗名/会社名": "まさしま酒店"},
+                {"番号": "2_1_44", "店舗名/会社名": "カフェ&スタンド エルソル"},
+                {"番号": "2_1_47", "店舗名/会社名": "大衆酒場 燗"},
+                {"番号": "2_1_50", "店舗名/会社名": "餃子かめちゃ"},
+                {"番号": "2_1_51", "店舗名/会社名": "鶏処 かめちゃん"},
+                {"番号": "2_1_52", "店舗名/会社名": "台湾料理 梅蘭 2号店"},
+                {"番号": "2_1_53", "店舗名/会社名": "大阪串かつ ヤマヲ"},
+                {"番号": "2_1_54", "店舗名/会社名": "新鮮海鮮よし華"},
+                {"番号": "2_1_55", "店舗名/会社名": "海鮮と串酒場 H"},
+                {"番号": "2_1_56", "店舗名/会社名": "大衆酒場 スタンドさがわ"},
+                {"番号": "2_1_57", "店舗名/会社名": "大分からあげと鶏飯専門処 81の膳屋"},
+                {"番号": "2_1_58", "店舗名/会社名": "寿司よし"},
+                {"番号": "2_1_59", "店舗名/会社名": "KAOLILA〜カオリラ〜"},
+                {"番号": "2_1_61", "店舗名/会社名": "おでんと和酒屋 じんべえ"},
+                // 2_2_〇〇のシートデータ
+                {"番号": "2_2_02", "店舗名/会社名": "堂島バー"},
+                {"番号": "2_2_04", "店舗名/会社名": "コーヒーモバイルダイナー"},
+                {"番号": "2_2_06", "店舗名/会社名": "チケットキャビネット梅田店"},
+                {"番号": "2_2_07", "店舗名/会社名": "チケットウララ"},
+                {"番号": "2_2_08", "店舗名/会社名": "天麩羅酒場 きくや梅田店"},
+                {"番号": "2_2_09", "店舗名/会社名": "チャーシューとからあげの店 旨いとはな〜る"},
+                {"番号": "2_2_10", "店舗名/会社名": "串焼専門居酒屋 梅田第2ビル店"},
+                {"番号": "2_2_11", "店舗名/会社名": "中之島ダイニングバー MIYA"},
+                {"番号": "2_2_12", "店舗名/会社名": "チケットキャビン梅田"},
+                {"番号": "2_2_15", "店舗名/会社名": "串鳥梅田店"},
+                {"番号": "2_2_16", "店舗名/会社名": "アジアンプラネット大阪梅田第2ビル店"},
+                {"番号": "2_2_17", "店舗名/会社名": "串焼酒場 ラーメン梅田店"},
+                {"番号": "2_2_18", "店舗名/会社名": "スタイルハント第2ビル店"},
+                {"番号": "2_2_22", "店舗名/会社名": "ダイコクドラッグアンドNETW梅田第2ビル店"},
+                {"番号": "2_2_23", "店舗名/会社名": "餃子酒場ギョウザファクトリー"},
+                {"番号": "2_2_24", "店舗名/会社名": "珈琲とワインと蕎麦 出汁とKAKEKU KE"},
+                {"番号": "2_2_25", "店舗名/会社名": "旨酒と炭火焼肉 梅こい"},
+                {"番号": "2_2_26", "店舗名/会社名": "鶏魚 やまがみ"},
+                {"番号": "2_2_29", "店舗名/会社名": "串鳥 梅田パール"},
+                {"番号": "2_2_30", "店舗名/会社名": "シャロン"},
+                {"番号": "2_2_31", "店舗名/会社名": "ジューススタンド大阪駅前第2ビル店"},
+                {"番号": "2_2_32", "店舗名/会社名": "tousai"},
+                {"番号": "2_2_34", "店舗名/会社名": "喫茶ルポ梅田第2ビル店"},
+                {"番号": "2_2_35", "店舗名/会社名": "うどん処 土屋"},
+                {"番号": "2_2_36", "店舗名/会社名": "炭焼安兵衛梅田第2号店"},
+                {"番号": "2_2_39", "店舗名/会社名": "炙り庵 (個室居酒屋)"},
+                {"番号": "2_2_40", "店舗名/会社名": "鶏か和食処 おか泉アジパード"},
+                {"番号": "2_2_41", "店舗名/会社名": "喜楽"},
+                {"番号": "2_2_42", "店舗名/会社名": "にわとりしん"},
+                {"番号": "2_2_43", "店舗名/会社名": "ワインと鶏と出汁のお料理 アヒージョ堂"},
+                {"番号": "2_2_44", "店舗名/会社名": "焼鳥まんぷく"},
+                {"番号": "2_2_47", "店舗名/会社名": "ふぐひろ"},
+                {"番号": "2_2_48", "店舗名/会社名": "ギンシャリ"},
+                {"番号": "2_2_50", "店舗名/会社名": "リラクゼーション療養院"},
+                {"番号": "2_2_51", "店舗名/会社名": "W6UMEDA1"},
+                {"番号": "2_2_52", "店舗名/会社名": "釜めしと串と出し 大阪駅前第2ビル店"},
+                {"番号": "2_2_53", "店舗名/会社名": "職人中華 イチカワ食堂"},
+                {"番号": "2_2_54", "店舗名/会社名": "コーヒーハウス"},
+                {"番号": "2_2_55", "店舗名/会社名": "鶏肉とチーズの店 チーズ"},
+                {"番号": "2_2_56", "店舗名/会社名": "鶏のからあげ専門店 鶴家"},
+                {"番号": "2_2_57", "店舗名/会社名": "豚肉と焼鳥屋 ばんがれ"},
+                {"番号": "2_2_58", "店舗名/会社名": "居酒屋 大衆鳥酒場"},
+                {"番号": "2_2_59", "店舗名/会社名": "Cafe MINIMO"},
+                {"番号": "2_2_61", "店舗名/会社名": "回転すし かずさ"},
+                {"番号": "2_2_62", "店舗名/会社名": "居酒屋やってるBAR"},
+                {"番号": "2_2_63", "店舗名/会社名": "酒場通"},
+                {"番号": "2_2_64", "店舗名/会社名": "JAZZ & BAR サウジー・ニュー"},
+                {"番号": "2_2_65", "店舗名/会社名": "LITTLE BAR LITTLE BAR"},
+                {"番号": "2_2_66", "店舗名/会社名": "居酒屋幸也"},
+                {"番号": "2_2_67", "店舗名/会社名": "ビフテキと魚"},
+                {"番号": "2_2_68", "店舗名/会社名": "まいどおおきに食堂"},
+                {"番号": "2_2_69", "店舗名/会社名": "中華酒場よしこ"},
+                {"番号": "2_2_70", "店舗名/会社名": "中国料理聚豊"},
+                {"番号": "2_2_72", "店舗名/会社名": "ポキッとする"},
+                {"番号": "2_2_73", "店舗名/会社名": "おーさんや花ちゃん"},
+                {"番号": "2_2_74", "店舗名/会社名": "魚さんじゃ"},
+                {"番号": "2_2_75", "店舗名/会社名": "ちゃんこ居酒屋太一山"},
+                {"番号": "2_2_76", "店舗名/会社名": "串揚げ 5.5梅田店"},
+                {"番号": "2_2_79", "店舗名/会社名": "リラクゼーションサロン"},
+                {"番号": "2_2_82", "店舗名/会社名": "立ち喰いうどん・そば・いも膳第2ビル店"},
+                {"番号": "2_2_83", "店舗名/会社名": "串かつ まる"},
+                {"番号": "2_2_84", "店舗名/会社名": "串かつ ひらた"},
+                {"番号": "2_2_85", "店舗名/会社名": "ホルモン焼き いとと"},
+                {"番号": "2_2_86", "店舗名/会社名": "Coffee & Bar ferrero ||"},
+                {"番号": "2_2_87", "店舗名/会社名": "クラフトビール プス"},
+                {"番号": "2_2_88", "店舗名/会社名": "グルメチャージ梅田店"},
+                {"番号": "2_2_90", "店舗名/会社名": "大衆酒場 スタンドさがわ"},
+                {"番号": "2_2_93", "店舗名/会社名": "立ち呑み酒場"},
+                {"番号": "2_2_94", "店舗名/会社名": "ぎゃらりーう"},
+                {"番号": "2_2_95", "店舗名/会社名": "フランス産・高級食パン&ワインのお店 ichigoDeuxieme"},
+                {"番号": "2_2_96", "店舗名/会社名": "24ユウコウリガタ店"},
+                {"番号": "2_2_97", "店舗名/会社名": "おいでよanastasia"},
+                {"番号": "2_2_98", "店舗名/会社名": "ひげ専門串カツ"}
+            ];
+            
+            const sheet1_data = all_data.filter(item => item["番号"].startsWith("1_"));
+            const sheet2_data = all_data.filter(item => item["番号"].startsWith("2_"));
+
+            const lotteryButton = document.getElementById('start_lottery');
+            const showConqueredListButton = document.getElementById('show_conquered_list_button');
+            const resultsDiv = document.getElementById('results');
+            
+            // モーダル要素を取得
+            const modal = document.getElementById('conquered-modal');
+            const closeModalButton = document.querySelector('.close');
+            const conqueredListDiv = document.getElementById('conquered-list');
+            const clearConqueredListButton = document.getElementById('clear_conquered_list_button');
+
+            // localStorageから制覇リストを読み込む
+            const loadConqueredList = () => {
+                try {
+                    const list = JSON.parse(localStorage.getItem('ekibiru-lottery-conquered-list')) || [];
+                    return list;
+                } catch (e) {
+                    console.error("Failed to parse conquered list from localStorage:", e);
+                    return [];
+                }
+            };
+
+            // localStorageに制覇リストを保存する
+            const saveConqueredList = (list) => {
+                localStorage.setItem('ekibiru-lottery-conquered-list', JSON.stringify(list));
+            };
+
+            // 制覇リストをモーダルに描画する
+            const renderConqueredList = () => {
+                const conqueredList = loadConqueredList();
+                if (conqueredList.length === 0) {
+                    conqueredListDiv.innerHTML = `<p class="text-gray-500">まだ制覇した店舗はありません。</p>`;
+                } else {
+                    const listHtml = conqueredList.map(item => `
+                        <li class="p-3 bg-indigo-50 rounded-lg shadow-sm">
+                            <p>${item.buildingName} ${item.floorName} | <span class="font-bold text-indigo-600">No.${item.c}</span> | <span class="font-bold">${item.name}</span></p>
+                        </li>
+                    `).join('');
+                    conqueredListDiv.innerHTML = `<ul class="space-y-2">${listHtml}</ul>`;
+                }
+            };
+
+            // 抽選ボタンのクリックイベントリスナー
+            lotteryButton.addEventListener('click', () => {
+                lotteryButton.disabled = true;
+                resultsDiv.innerHTML = `<p class="text-indigo-600 font-bold text-lg">抽選中...</p>`;
+
+                setTimeout(() => {
+                    const selectedSheet = document.querySelector('input[name="sheet"]:checked').value;
+                    const currentData = selectedSheet === 'sheet1' ? sheet1_data : sheet2_data;
+
+                    if (currentData.length < 2) {
+                        resultsDiv.innerHTML = `<p class="text-red-500">抽選を行うには2つ以上の店舗が必要です。</p>`;
+                        lotteryButton.disabled = false;
+                        return;
+                    }
+
+                    const results = [];
+                    let randomIndex1 = Math.floor(Math.random() * currentData.length);
+                    results.push(currentData[randomIndex1]);
+
+                    let randomIndex2;
+                    do {
+                        randomIndex2 = Math.floor(Math.random() * currentData.length);
+                    } while (randomIndex1 === randomIndex2);
+                    results.push(currentData[randomIndex2]);
+
+                    let resultHtml = `
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">Result</h2>
+                        <ul class="space-y-2 text-gray-700" id="lottery-results-list">
+                            ${results.map((item, index) => {
+                                const [building, floor, c] = item["番号"].split('_');
+                                const buildingName = building === '1' ? '第一ビル' : '第二ビル';
+                                const floorName = floor === '1' ? 'B1F' : 'B2F';
+                                const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(`梅田駅前 ${buildingName} ${item["店舗名/会社名"]}`)}`;
+                                
+                                return `
+                                    <li class="p-3 bg-gray-100 rounded-lg shadow-sm flex items-center justify-between">
+                                        <div class="flex-grow">
+                                            <p>${buildingName} ${floorName} | <span class="font-bold text-indigo-600">No.${c}</span> | <a href="${searchUrl}" target="_blank" class="font-bold text-blue-600 hover:underline">${item["店舗名/会社名"]}</a></p>
+                                        </div>
+                                        <button class="add-to-conquered-list-button ml-4 bg-green-500 text-white text-sm font-bold py-1 px-3 rounded-full shadow-md"
+                                                data-index="${index}">リストに追加</button>
+                                    </li>
+                                `;
+                            }).join('')}
+                        </ul>
+                    `;
+                    resultsDiv.innerHTML = resultHtml;
+                    
+                    // 「リストに追加」ボタンのイベントリスナーを追加
+                    document.querySelectorAll('.add-to-conquered-list-button').forEach(button => {
+                        button.addEventListener('click', (e) => {
+                            const index = e.target.getAttribute('data-index');
+                            const item = results[index];
+                            const [building, floor, c] = item["番号"].split('_');
+                            const buildingName = building === '1' ? '第一ビル' : '第二ビル';
+                            const floorName = floor === '1' ? 'B1F' : 'B2F';
+
+                            const newItem = {
+                                buildingName: buildingName,
+                                floorName: floorName,
+                                c: c,
+                                name: item["店舗名/会社名"]
+                            };
+
+                            const conqueredList = loadConqueredList();
+                            // 重複チェック
+                            const isDuplicate = conqueredList.some(conqueredItem => 
+                                conqueredItem.buildingName === newItem.buildingName &&
+                                conqueredItem.floorName === newItem.floorName &&
+                                conqueredItem.name === newItem.name
+                            );
+
+                            if (!isDuplicate) {
+                                conqueredList.push(newItem);
+                                saveConqueredList(conqueredList);
+                                // カスタムモーダルの代わりに組み込みのconfirm()を使用
+                                if(confirm(`${newItem.name}を制覇リストに追加しました！`)){
+                                    // 処理なし
+                                }
+                                e.target.disabled = true;
+                                e.target.innerText = '追加済み';
+                                e.target.classList.remove('bg-green-500', 'hover:bg-green-600');
+                                e.target.classList.add('bg-gray-400', 'cursor-not-allowed');
+                            } else {
+                                // カスタムモーダルの代わりに組み込みのconfirm()を使用
+                                if(confirm(`${newItem.name}はすでに制覇リストにあります。`)){
+                                    // 処理なし
+                                }
+                            }
+                        });
+                    });
+
+                    lotteryButton.disabled = false;
+                }, 2000);
+            });
+
+            // 「制覇リスト」ボタンのクリックイベント
+            showConqueredListButton.addEventListener('click', () => {
+                renderConqueredList();
+                modal.style.display = 'flex';
+            });
+
+            // 「リストをクリア」ボタンのクリックイベント
+            clearConqueredListButton.addEventListener('click', () => {
+                if(confirm('本当に制覇リストをすべてクリアしますか？この操作は元に戻せません。')) {
+                    localStorage.removeItem('ekibiru-lottery-conquered-list');
+                    renderConqueredList();
+                }
+            });
+
+            // 閉じるボタンのクリックイベント
+            closeModalButton.addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+
+            // モーダルの外側をクリックしたら閉じる
+            window.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
